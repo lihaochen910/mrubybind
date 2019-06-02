@@ -53,279 +53,367 @@ namespace mrubybind {
 extern const char* untouchable_table;
 extern const char* untouchable_object;
 
-class MrubyArenaStore{
-    mrb_state* mrb;
-    int ai;
-public:
-    MrubyArenaStore(mrb_state* mrb)
-    {
-        this->mrb = mrb;
-        this->ai = mrb_gc_arena_save(mrb);
-    }
+//================================================================//
+// MrubyArenaStore
+//================================================================//
+class MrubyArenaStore {
 
-    ~MrubyArenaStore()
-    {
-        mrb_gc_arena_restore(mrb, ai);
-    }
+	mrb_state* mrb;
+	int ai;
+public:
+	MrubyArenaStore ( mrb_state* mrb ) {
+		this->mrb = mrb;
+		this->ai = mrb_gc_arena_save ( mrb );
+	}
+
+	~MrubyArenaStore () {
+		mrb_gc_arena_restore ( this->mrb, this->ai );
+	}
 
 };
 
-class MrubyBindStatus{
+//================================================================//
+// MrubyBindStatus
+//================================================================//
+class MrubyBindStatus {
 
 public:
 
-    struct Data;
-    typedef std::shared_ptr<Data> Data_ptr;
-    typedef std::map<mrb_state*, Data_ptr > Table;
+	struct Data;
+	typedef std::shared_ptr< Data > Data_ptr;
+	typedef std::map< mrb_state*, Data_ptr > Table;
 
-    struct ObjectInfo
-    {
-        size_t ref_count;
-        size_t id;
+	struct ObjectInfo {
 
-        ObjectInfo()
-        {
-            this->ref_count = 0;
-            this->id = 0;
-        }
+		size_t ref_count;
+		size_t id;
 
-        ObjectInfo(size_t id)
-        {
-            this->ref_count = 1;
-            this->id = id;
-        }
-    };
-    typedef std::map<RBasic*, ObjectInfo> ObjectIdTable;
-    typedef std::vector<size_t> FreeIdArray;
+		ObjectInfo () {
+			this->ref_count = 0;
+			this->id = 0;
+		}
 
-    static Table& get_living_table(){
-        static Table table;
-        return table;
-    }
+		ObjectInfo ( size_t id ) {
+			this->ref_count = 1;
+			this->id = id;
+		}
+	};
+	typedef std::map< RBasic*, ObjectInfo > ObjectIdTable;
+	typedef std::vector< size_t > FreeIdArray;
 
-    struct Data{
-        typedef std::map<std::string, std::map<std::string, bool> > ClassConvertableTable;
+	static Table& get_living_table () {
+		static Table table;
+		return table;
+	}
 
+	struct Data {
 
-        mrb_state* mrb;
-        mrb_value avoid_gc_table;
-        ClassConvertableTable class_convertable_table;
-        ObjectIdTable object_id_table;
-        FreeIdArray free_id_array;
-
-        Data(){
-
-        }
-        ~Data(){
-
-        }
-
-        mrb_state* get_mrb(){
-            return mrb;
-        }
-
-        mrb_value get_avoid_gc_table(){
-            return avoid_gc_table;
-        }
-
-        size_t new_id()
-        {
-            return mrb_ary_len(mrb, avoid_gc_table);
-        }
-
-        ObjectIdTable& get_object_id_table()
-        {
-            return object_id_table;
-        }
-
-        FreeIdArray& get_free_id_array()
-        {
-            return free_id_array;
-        }
-
-        void set_class_conversion(const std::string& s, const std::string& d, bool c){
-            class_convertable_table[s][d] = c;
-        }
-
-        bool is_convertable(const std::string& s, const std::string& d)
-        {
-            auto fs = class_convertable_table.find(s);
-            if(fs != class_convertable_table.end()){
-                auto fd = fs->second.find(d);
-                if(fd != fs->second.end()){
-                    return fd->second;
-                }
-            }
-            return false;
-        }
-
-    };
-
-    MrubyBindStatus(){
-
-    }
-
-    MrubyBindStatus(mrb_state* mrb, mrb_value avoid_gc_table){
-
-        Table& living_table = get_living_table();
-        data = std::make_shared<Data>();
-        data->mrb = mrb;
-        data->avoid_gc_table = avoid_gc_table;
-        living_table[mrb] = data;
-    }
-
-    ~MrubyBindStatus(){
-
-        Table& living_table = MrubyBindStatus::get_living_table();
-        living_table.erase(data->mrb);
-        data->mrb = NULL;
-
-    }
-
-    static bool is_living(mrb_state* mrb){
-        Table& living_table = get_living_table();
-        if(living_table.find(mrb) != living_table.end()){
-            return living_table[mrb].get();
-        }
-        return false;
-    }
-
-    static Data_ptr search(mrb_state* mrb){
-        Table& living_table = get_living_table();
-        if(living_table.find(mrb) != living_table.end()){
-            return living_table[mrb];
-        }
-        return Data_ptr(NULL);
-    }
+		typedef std::map< std::string, std::map< std::string, bool > > ClassConvertableTable;
 
 
+		mrb_state* mrb;
+		mrb_value avoid_gc_table;
+		ClassConvertableTable class_convertable_table;
+		ObjectIdTable object_id_table;
+		FreeIdArray free_id_array;
+
+		Data () {}
+		~Data () {}
+
+		mrb_state* get_mrb () {
+			return mrb;
+		}
+
+		mrb_value get_avoid_gc_table () {
+			return avoid_gc_table;
+		}
+
+		size_t new_id () {
+			//return mrb_ary_len(mrb, avoid_gc_table);
+			return RARRAY_LEN ( avoid_gc_table );
+		}
+
+		ObjectIdTable& get_object_id_table () {
+			return object_id_table;
+		}
+
+		FreeIdArray& get_free_id_array () {
+			return free_id_array;
+		}
+
+		void set_class_conversion ( const std::string& s, const std::string& d, bool c ) {
+			class_convertable_table [ s ][ d ] = c;
+		}
+
+		bool is_convertable ( const std::string& s, const std::string& d ) {
+			auto fs = class_convertable_table.find ( s );
+			if ( fs != class_convertable_table.end () ) {
+				auto fd = fs->second.find ( d );
+				if ( fd != fs->second.end () ) {
+					return fd->second;
+				}
+			}
+			return false;
+		}
+
+		bool add_avoid_gc_object ( const mrb_value& v ) {
+
+			if ( !mrb_immediate_p ( v ) ) {
+
+				auto& mrbsp = MrubyBindStatus::search ( mrb );
+				mrb_value avoid_gc_table = mrbsp->get_avoid_gc_table ();
+				auto& object_id_table = mrbsp->get_object_id_table ();
+				auto& free_id_array = mrbsp->get_free_id_array ();
+
+				if ( object_id_table.find ( mrb_basic_ptr ( v ) ) == object_id_table.end () ) {
+
+					size_t new_id;
+					if ( !free_id_array.empty () ) {
+
+						new_id = free_id_array.back ();
+						free_id_array.pop_back ();
+
+						mrb_ary_set ( mrb, avoid_gc_table, ( mrb_int )new_id, v );
+					}
+					else {
+						new_id = mrbsp->new_id ();
+						mrb_ary_push ( mrb, avoid_gc_table, v );
+					}
+
+					object_id_table [ mrb_basic_ptr ( v ) ] = MrubyBindStatus::ObjectInfo ( new_id );
+				}
+				else {
+					object_id_table [ mrb_basic_ptr ( v ) ].ref_count++;
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+
+		bool reduce_avoid_gc_object ( const mrb_value& v ) {
+
+			if ( !mrb_immediate_p ( v ) ) {
+
+				auto& mrbsp = MrubyBindStatus::search ( mrb );
+				mrb_value avoid_gc_table = mrbsp->get_avoid_gc_table ();
+				auto& object_id_table = mrbsp->get_object_id_table ();
+				auto& free_id_array = mrbsp->get_free_id_array ();
+
+				if ( object_id_table.find ( mrb_basic_ptr ( v ) ) != object_id_table.end () ) {
+
+					auto& obj_info = object_id_table [ mrb_basic_ptr ( v ) ];
+					obj_info.ref_count--;
+
+					if ( obj_info.ref_count <= 0 ) {
+
+						mrb_ary_set ( mrb, avoid_gc_table, ( mrb_int )obj_info.id, mrb_nil_value () );
+						free_id_array.push_back ( obj_info.id );
+						object_id_table.erase ( mrb_basic_ptr ( v ) );
+					}
+
+					return true;
+				}
+
+				return false;
+			}
+
+			return false;
+		}
+
+	};
+
+	MrubyBindStatus () {
+	}
+
+	MrubyBindStatus ( mrb_state* mrb, mrb_value avoid_gc_table ) {
+
+		Table& living_table = MrubyBindStatus::get_living_table ();
+		data = std::make_shared < Data > ();
+		data->mrb = mrb;
+		data->avoid_gc_table = avoid_gc_table;
+		living_table [ mrb ] = data;
+	}
+
+	~MrubyBindStatus () {
+
+		Table& living_table = MrubyBindStatus::get_living_table ();
+		living_table.erase ( data->mrb );
+		data->mrb = NULL;
+	}
+
+	static bool is_living ( mrb_state* mrb ) {
+
+		Table& living_table = get_living_table ();
+		if ( living_table.find ( mrb ) != living_table.end () ) {
+			return living_table [ mrb ].get ();
+		}
+		return false;
+	}
+
+	static Data_ptr search ( mrb_state* mrb ) {
+
+		Table& living_table = MrubyBindStatus::get_living_table ();
+		if ( living_table.find ( mrb ) != living_table.end () ) {
+			return living_table [ mrb ];
+		}
+		return Data_ptr ( NULL );
+	}
 
 private:
-    std::shared_ptr<Data> data;
+	std::shared_ptr< Data > data;
+
 };
 
-template<class T> class Deleter{
+//================================================================//
+// NullDeleter<T>
+//================================================================//
+template<class T>
+struct NullDeleter {
+	void operator()( T* p ) const {}
+};
+
+struct GCDeleter {
+	mrb_state* mrb;
+	GCDeleter ( mrb_state* mrb ) { this->mrb = mrb; }
+	void operator()( RBasic* p ) const { mrb_gc_unregister ( mrb, mrb_obj_value(p) ); }
+};
+
+//================================================================//
+// Deleter<T>
+//================================================================//
+template<class T>
+class Deleter {
+private:
     MrubyBindStatus::Data_ptr mrbsp;
     mrb_value v_;
 public:
-    Deleter()
-    {
+    Deleter() { }
 
-    }
+	Deleter ( mrb_state* mrb, mrb_value v ) {
 
-    Deleter(mrb_state* mrb, mrb_value v){
-        if(!mrb_immediate_p(v))
-        {
-            mrbsp = MrubyBindStatus::search(mrb);
-            mrb_value avoid_gc_table = mrbsp->get_avoid_gc_table();
-            auto& object_id_table = mrbsp->get_object_id_table();
-            auto& free_id_array = mrbsp->get_free_id_array();
-            if(object_id_table.find(mrb_basic_ptr(v)) == object_id_table.end())
-            {
-                size_t new_id;
-                if(!free_id_array.empty())
-                {
-                    new_id = free_id_array.back();
-                    free_id_array.pop_back();
-                    mrb_ary_set(mrb, avoid_gc_table, (mrb_int)new_id, v);
-                }
-                else
-                {
-                    new_id = mrbsp->new_id();
-                    mrb_ary_push(mrb, avoid_gc_table, v);
-                }
-                object_id_table[mrb_basic_ptr(v)] = MrubyBindStatus::ObjectInfo(new_id);
-            }
-            else
-            {
-                object_id_table[mrb_basic_ptr(v)].ref_count++;
-            }
-        }
-        v_ = v;
+		if ( !mrb_immediate_p ( v ) ) {
 
-    }
-    ~Deleter(){
+			mrbsp = MrubyBindStatus::search ( mrb );
+			mrbsp->add_avoid_gc_object ( v );
+			/*mrb_value avoid_gc_table = mrbsp->get_avoid_gc_table ();
+			auto& object_id_table = mrbsp->get_object_id_table ();
+			auto& free_id_array = mrbsp->get_free_id_array ();
 
-    }
-    mrb_state* get_mrb(){
-        return mrbsp->mrb;
-    }
-    void operator()(T* p) const {
-        if(mrbsp.get()){
-            mrb_state* mrb = mrbsp->get_mrb();
-            if(mrb){
-                mrb_value v = v_;
-                if(!mrb_immediate_p(v))
-                {
-                    mrb_value avoid_gc_table = mrbsp->get_avoid_gc_table();
-                    auto& object_id_table = mrbsp->get_object_id_table();
-                    auto& free_id_array = mrbsp->get_free_id_array();
-                    auto& oi = object_id_table[mrb_basic_ptr(v)];
-                    oi.ref_count--;
-                    if(oi.ref_count <= 0)
-                    {
-                        mrb_ary_set(mrb, avoid_gc_table, (mrb_int)oi.id, mrb_nil_value());
-                        free_id_array.push_back(oi.id);
-                        object_id_table.erase(mrb_basic_ptr(v));
-                    }
-                }
+			if ( object_id_table.find ( mrb_basic_ptr ( v ) ) == object_id_table.end () ) {
 
+				size_t new_id;
+				if ( !free_id_array.empty () ) {
 
-            }
-        }
-        if(p){
-            delete p;
-        }
-    }
+					new_id = free_id_array.back ();
+					free_id_array.pop_back ();
+
+					mrb_ary_set ( mrb, avoid_gc_table, ( mrb_int )new_id, v );
+				}
+				else {
+					new_id = mrbsp->new_id ();
+					mrb_ary_push ( mrb, avoid_gc_table, v );
+				}
+
+				object_id_table [ mrb_basic_ptr ( v ) ] = MrubyBindStatus::ObjectInfo ( new_id );
+			}
+			else {
+				object_id_table [ mrb_basic_ptr ( v ) ].ref_count++;
+			}*/
+		}
+		v_ = v;
+
+	}
+
+    ~Deleter() { }
+
+	mrb_state* get_mrb () {
+		return mrbsp->mrb;
+	}
+
+	void operator()( T* p ) const {
+
+		if ( mrbsp.get () ) {
+
+			mrb_state* mrb = mrbsp->get_mrb ();
+			if ( mrb ) {
+				
+				mrbsp->reduce_avoid_gc_object ( v_ );
+				/*mrb_value v = v_;
+				if ( !mrb_immediate_p ( v ) ) {
+
+					mrb_value avoid_gc_table = mrbsp->get_avoid_gc_table ();
+					auto& object_id_table = mrbsp->get_object_id_table ();
+					auto& free_id_array = mrbsp->get_free_id_array ();
+					auto& oi = object_id_table [ mrb_basic_ptr ( v ) ];
+					oi.ref_count--;
+
+					if ( oi.ref_count <= 0 ) {
+						mrb_ary_set ( mrb, avoid_gc_table, ( mrb_int )oi.id, mrb_nil_value () );
+						free_id_array.push_back ( oi.id );
+						object_id_table.erase ( mrb_basic_ptr ( v ) );
+					}
+				}*/
+			}
+		}
+		if ( p ) {
+			delete p;
+		}
+	}
 
 };
 
 template<class T> using obj_ptr = std::shared_ptr<T>;
 //template<class T> using FuncPtr = std::shared_ptr<std::function<T> >;
 
-template<class T> class FuncPtr{
-    mrb_state* mrb;
-    std::shared_ptr<std::function<T> > p;
+//================================================================//
+// FuncPtr<T>
+//================================================================//
+template<class T>
+class FuncPtr {
+private:
+	mrb_state* mrb;
+	std::shared_ptr< std::function<T> > p;
 public:
-    FuncPtr(){
+	FuncPtr () {
+	}
+	template<class D>FuncPtr ( std::function<T>* pt, D d ) : p ( pt, d ) {
+		mrb = d.get_mrb ();
+	}
+	~FuncPtr () {
 
-    }
-    template<class D>FuncPtr(std::function<T>* pt, D d) : p(pt, d){
-        mrb = d.get_mrb();
-    }
-    ~FuncPtr(){
-
-    }
-    const std::shared_ptr<std::function<T> >& ref() const{
-        return p;
-    }
-    bool is_living() const{
-        return MrubyBindStatus::is_living(mrb);
-    }
-    std::function<T>& func() const{
-        if(!p.get()){
-            throw std::runtime_error("empty function.");
-        }
-        return *p.get();
-    }
-    operator bool() const {
-        if(!p.get()){
-            return false;
-        }
-        return (bool)*p.get();
-    }
-    void reset(){
-        p.reset();
-    }
-    template<class Y> void reset(Y* y){
-        p.reset(y);
-    }
-    template<class Y, class D> void reset(Y* y, D d){
-        p.reset(y, d);
-    }
-    template<class Y, class D, class A> void reset(Y* y, D d, A a){
-        p.reset(y, d, a);
-    }
+	}
+	const std::shared_ptr<std::function<T> >& ref () const {
+		return p;
+	}
+	bool is_living () const {
+		return MrubyBindStatus::is_living ( mrb );
+	}
+	std::function<T>& func () const {
+		if ( !p.get () ) {
+			throw std::runtime_error ( "empty function." );
+		}
+		return *p.get ();
+	}
+	operator bool () const {
+		if ( !p.get () ) {
+			return false;
+		}
+		return ( bool )*p.get ();
+	}
+	void reset () {
+		p.reset ();
+	}
+	template<class Y> void reset ( Y* y ) {
+		p.reset ( y );
+	}
+	template<class Y, class D> void reset ( Y* y, D d ) {
+		p.reset ( y, d );
+	}
+	template<class Y, class D, class A> void reset ( Y* y, D d, A a ) {
+		p.reset ( y, d, a );
+	}
 };
 
 template<class T> Deleter<T> set_avoid_gc(mrb_state* mrb, mrb_value v){
@@ -347,31 +435,154 @@ template<class T> FuncPtr<T> make_FuncPtr(Deleter<std::function<T> > d, std::fun
 template <class T>
 struct Type;
 
-class MrubyRef{
-    mrb_state* mrb;
-    std::shared_ptr<mrb_value> v;
+//================================================================//
+// MrubyRef
+//================================================================//
+class MrubyRef {
 public:
 
-    MrubyRef();
-    MrubyRef(mrb_state* mrb, const mrb_value& v);
-    ~MrubyRef();
+	//typedef std::weak_ptr < RBasic > weakref;
+	//typedef std::shared_ptr < RBasic > strongref;
 
-    bool is_living() const;
-    mrb_state* get_mrb() const;
-    mrb_value get_v()const;
-    bool empty() const;
-    bool test() const;
-    bool obj_equal(const MrubyRef& r) const;
-    std::string to_s() const;
-    int to_i() const;
-    float to_float() const;
-    double to_double() const;
+	mrb_state* mrb;
+	std::shared_ptr<mrb_value> v;
+	std::shared_ptr<RObject> strong_v;
+	std::weak_ptr<RObject> weak_v;
+	//strongref strong_b;
+	//weakref weak_b;
+
+public:
+
+	enum {
+		MAKE_STRONG,
+		MAKE_WEAK,
+	};
+
+	friend class MrubyStrongRef;
+	friend class MrubyWeakRef;
+
+	MrubyRef ();
+	MrubyRef ( mrb_state* mrb, const mrb_value& v );
+	MrubyRef ( const MrubyRef& assign );
+	~MrubyRef ();
+
+	void					clear ();
+	void					make_strong ( mrb_state* mrb, const mrb_value& v );
+	void					make_weak ( mrb_state* mrb, const mrb_value& v );
+	virtual void			set_ref ( mrb_state* mrb, const mrb_value& v );
+	void					set_ref ( mrb_state* mrb, const mrb_value& v, unsigned int type );
+	void					take ( const MrubyRef& assign );
+
+	bool is_living () const;
+	mrb_state* get_mrb () const;
+	virtual mrb_value get_v () const;
+	virtual bool empty () const;
+	bool test () const;
+	bool obj_equal ( const MrubyRef& r ) const;
+	std::string to_s () const;
+	int to_i () const;
+	float to_float () const;
+	double to_double () const;
+
+	//----------------------------------------------------------------//
+	/*inline mrb_value* operator -> () const {
+		return &this->get_v ();
+	};*/
+
+	//----------------------------------------------------------------//
+	/*inline mrb_value& operator * () const {
+		return this->get_v ();
+	};*/
+
+	//----------------------------------------------------------------//
+	/*inline operator mrb_value* () {
+		return &this->get_v ();
+	};*/
 
     MrubyRef call(std::string name);
 
 #include "mrubybind_call_generated.h"
 
 };
+
+//================================================================//
+// MrubyStrongRef
+//================================================================//
+class MrubyStrongRef :
+	public MrubyRef {
+public:
+
+	//----------------------------------------------------------------//
+					MrubyStrongRef ();
+					MrubyStrongRef ( mrb_state* mrb, const mrb_value& v );
+					MrubyStrongRef ( const MrubyStrongRef& assign );
+	void			set_ref ( mrb_state* mrb, const mrb_value& v );
+	mrb_value		get_v () const;
+	bool			empty () const;
+
+	//----------------------------------------------------------------//
+	inline operator bool () const {
+		return !this->empty ();
+	};
+
+	//----------------------------------------------------------------//
+	inline operator mrb_value() const {
+		return this->get_v ();
+	};
+
+	//----------------------------------------------------------------//
+	inline MrubyStrongRef& operator = ( const MrubyStrongRef& rhs ) {
+
+		if ( this == &rhs ) {
+			return *this;
+		}
+
+		this->mrb = rhs.mrb;
+		this->strong_v = rhs.strong_v;
+
+		return *this;
+	};
+};
+
+//================================================================//
+// MrubyStrongRef
+//================================================================//
+class MrubyWeakRef :
+	public MrubyRef {
+public:
+
+	//----------------------------------------------------------------//
+					MrubyWeakRef ();
+					MrubyWeakRef ( mrb_state* mrb, const mrb_value& v );
+					MrubyWeakRef ( const MrubyWeakRef& assign );
+	void			set_ref ( mrb_state* mrb, const mrb_value& v );
+	mrb_value		get_v () const;
+	bool			empty () const;
+
+	//----------------------------------------------------------------//
+	inline operator bool() const {
+		return !this->empty ();
+	};
+
+	//----------------------------------------------------------------//
+	inline operator mrb_value() const {
+		return this->get_v ();
+	};
+
+	//----------------------------------------------------------------//
+	inline MrubyWeakRef& operator = ( const MrubyWeakRef& rhs ) {
+
+		if ( this == &rhs ) {
+			return *this;
+		}
+
+		this->mrb = rhs.mrb;
+		this->weak_v = rhs.weak_v;
+
+		return *this;
+	};
+};
+
 
 //===========================================================================
 // C <-> mruby type converter.
@@ -474,7 +685,7 @@ struct Type<void*> {
   static const char TYPE_NAME[];
   static int check(mrb_state*, mrb_value v) { return mrb_cptr_p(v); }
   static void* get(mrb_state*, mrb_value v) { return mrb_cptr(v); }
-  static mrb_value ret(mrb_state* mrb, void* p) { return mrb_cptr_value(mrb, p); }
+  static mrb_value ret(mrb_state* mrb, void* p) { printf("Type<void*>::ret()"); return mrb_cptr_value(mrb, p); }
 };
 
 // Function
@@ -519,10 +730,28 @@ struct Type<FuncPtr<void()> > :public TypeFuncBase {
 // mruby value
 template<>
 struct Type<MrubyRef> {
-  static const char TYPE_NAME[];
-  static int check(mrb_state*, mrb_value) { return 1; }
-  static MrubyRef get(mrb_state* mrb, mrb_value v) { (void)mrb; return MrubyRef(mrb, v); }
-  static mrb_value ret(mrb_state*, MrubyRef r) { return r.get_v(); }
+	static const char TYPE_NAME[];
+	static int check ( mrb_state*, mrb_value ) { return 1; }
+	static MrubyRef get ( mrb_state* mrb, mrb_value v ) { ( void )mrb; return MrubyRef ( mrb, v ); }
+	static mrb_value ret ( mrb_state*, MrubyRef r ) { return r.get_v (); }
+};
+
+// mruby StrongRef
+template<>
+struct Type<MrubyStrongRef> {
+	static const char TYPE_NAME[];
+	static int check ( mrb_state*, mrb_value ) { return 1; }
+	static MrubyStrongRef get ( mrb_state* mrb, mrb_value v ) { ( void )mrb; return MrubyStrongRef ( mrb, v ); }
+	static mrb_value ret ( mrb_state*, MrubyStrongRef r ) { return r.get_v (); }
+};
+
+// mruby WeakRef
+template<>
+struct Type<MrubyWeakRef> {
+	static const char TYPE_NAME[];
+	static int check ( mrb_state*, mrb_value ) { return 1; }
+	static MrubyWeakRef get ( mrb_state* mrb, mrb_value v ) { ( void )mrb; return MrubyWeakRef ( mrb, v ); }
+	static mrb_value ret ( mrb_state*, MrubyWeakRef r ) { return r; }
 };
 
 
@@ -543,15 +772,18 @@ struct Binder {
 // Binder template class is specialized with type.
 template <class C>
 struct ClassBinder {
+
   static struct mrb_data_type type_info;
+
   static void dtor(mrb_state*, void* p) {
-    C* instance = static_cast<C*>(p);
-    delete instance;
+	  C* instance = static_cast< C* >(p);
+	  delete instance;
   }
 
   // Template specialization.
   //static void ctor(mrb_state* mrb, mrb_value self, void* new_func_ptr, mrb_value* args, int narg) {
 };
+
 template<class C>
 mrb_data_type ClassBinder<C>::type_info = { "???", dtor };
 
@@ -590,15 +822,19 @@ template<class T> struct Type<T&> :public TypeClassBase {
 
 template<class T> std::string Type<T&>::class_name = "";
 
-template<class T> struct Type :public TypeClassBase {
+template<class T> struct Type : public TypeClassBase {
+
     static std::string class_name;
+
     static int check(mrb_state* mrb, mrb_value v) {
         return mrb_type(v) == MRB_TT_DATA &&
             MrubyBindStatus::search(mrb)->is_convertable(mrb_obj_classname(mrb, v), class_name);
     }
+
     static T get(mrb_state* mrb, mrb_value v) {
             (void)mrb; return *(T*)DATA_PTR(v);
-        }
+    }
+
     static mrb_value ret(mrb_state* mrb, T t) {
         RClass* cls;
         mrb_value v;
@@ -5098,6 +5334,7 @@ namespace mrubybind {
 //===========================================================================
 // MrubyBind - utility class for binding C functions/classes to mruby.
 class MrubyBind {
+
 public:
   MrubyBind(mrb_state* mrb);
   MrubyBind(mrb_state* mrb, RClass* mod);
@@ -5129,9 +5366,11 @@ public:
       mrb_symbol_value(func_name_s),          // 1: function name
     };
     struct RProc* proc = mrb_proc_new_cfunc_with_env(mrb_, Binder<Func>::call, 2, env);
-    mrb_field_write_barrier(mrb_, (RBasic *)proc, (RBasic *)proc->env);
+    mrb_field_write_barrier(mrb_, (RBasic *)proc, (RBasic *)proc->e.env);
+    mrb_method_t m;
+    MRB_METHOD_FROM_PROC(m, proc);
     if (mod_ == mrb_->kernel_module)
-      mrb_define_method_raw(mrb_, mod_, func_name_s, proc);
+      mrb_define_method_raw(mrb_, mod_, func_name_s, m);
     else
       mrb_define_class_method_raw(mrb_, mod_, func_name_s, proc);
   }
@@ -5197,7 +5436,7 @@ public:
       mrb_symbol_value(method_name_s),          // 1: method name
     };
     struct RProc* proc = mrb_proc_new_cfunc_with_env(mrb_, Binder<Method>::call, 2, env);
-    mrb_field_write_barrier(mrb_, (RBasic *)proc, (RBasic *)proc->env);
+    mrb_field_write_barrier(mrb_, (RBasic *)proc, (RBasic *)proc->e.env);
     struct RClass* klass = GetClass(module_name, class_name);
     mrb_define_class_method_raw(mrb_, klass, method_name_s, proc);
   }
@@ -5223,9 +5462,11 @@ public:
       mrb_symbol_value(method_name_s), // 1: method name
     };
     struct RProc* proc = mrb_proc_new_cfunc_with_env(mrb_, binder_func, 2, env);
-    mrb_field_write_barrier(mrb_, (RBasic *)proc, (RBasic *)proc->env);
+    mrb_field_write_barrier(mrb_, (RBasic *)proc, (RBasic *)proc->e.env);
+    mrb_method_t m;
+    MRB_METHOD_FROM_PROC(m, proc);
     struct RClass* klass = GetClass(module_name, class_name);
-    mrb_define_method_raw(mrb_, klass, method_name_s, proc);
+    mrb_define_method_raw(mrb_, klass, method_name_s, m);
   }
 
   template <class Func>
@@ -5270,6 +5511,9 @@ private:
   // TODO: Send pull request to the official mruby repository.
   void
   mrb_define_class_method_raw(mrb_state *mrb, struct RClass *c, mrb_sym mid, struct RProc *p);
+
+  static mrb_value mrb_get_untouchable_table( mrb_state* mrb, mrb_value self );
+  static mrb_value mrb_get_untouchable_object( mrb_state* mrb, mrb_value self );
 
   mrb_state* mrb_;
   RClass* mod_;
