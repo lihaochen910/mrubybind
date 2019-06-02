@@ -271,7 +271,7 @@ require C++11. because it use std::function and lambda.
   std::cout << "mruby_ref = " << mruby_ref.to_s() << std::endl;
   std::cout << "mruby_ref = " << mruby_ref.to_i() << std::endl;
   std::cout << "mruby_ref = " << mruby_ref.call("gsub", "te", "toa").to_s() << std::endl;
-  std::cout << "mruby_weak_ref released? " << mruby_ref.empty() << std::endl;
+  std::cout << "mruby_weak_ref released? " << mruby_weak_ref.empty() << std::endl;
   ```
 
 ## Supported types
@@ -284,8 +284,8 @@ require C++11. because it use std::function and lambda.
 | void*                    | Object                  |
 | mrubybind::FuncPtr<...>  | Proc                    |
 | mrubybind::MrubyRef      | Any Mruby Object        |
-| mrubybind::MrubyWeakRef  | Weak Reference Any Mruby Object |
-| mrubybind::MrubyStrongRef| Strong Reference Any Mruby Object |
+| mrubybind::MrubyWeakRef  | Weak Reference to Any Mruby Object |
+| mrubybind::MrubyStrongRef| Strong Reference to Any Mruby Object |
 | registered class         | registered class        |
 
 See [mrubybind.h](https://github.com/lihaochen910/mrubybind/blob/devel/mrubybind.h).
