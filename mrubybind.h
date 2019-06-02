@@ -439,17 +439,12 @@ struct Type;
 // MrubyRef
 //================================================================//
 class MrubyRef {
-public:
-
-	//typedef std::weak_ptr < RBasic > weakref;
-	//typedef std::shared_ptr < RBasic > strongref;
+protected:
 
 	mrb_state* mrb;
 	std::shared_ptr<mrb_value> v;
 	std::shared_ptr<RObject> strong_v;
 	std::weak_ptr<RObject> weak_v;
-	//strongref strong_b;
-	//weakref weak_b;
 
 public:
 
