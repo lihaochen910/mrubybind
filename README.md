@@ -232,10 +232,15 @@ require C++11. because it use std::function and lambda.
 1. Recieve mruby object reference function:
 
   ```c++
-  mrubybind::MrubyRef mruby_ref;
+  mrubybind::MrubyStrongRef mruby_ref;
+  mrubybind::MrubyWeakRef mruby_weak_ref;
   
-  void set_mruby_ref(mrubybind::MrubyRef r){
+  void set_mruby_ref(mrubybind::MrubyStrongRef r){
     mruby_ref = r;
+  }
+
+  void set_mruby_weak_ref(mrubybind::MrubyWeakRef r){
+    mruby_weak_ref = r;
   }
   ```
   
@@ -247,6 +252,7 @@ require C++11. because it use std::function and lambda.
   void install_mruby_ref_function(mrb_state* mrb) {
     mrubybind::MrubyBind b(mrb);
     b.bind("set_mruby_ref", set_mruby_ref);
+    b.bind("set_mruby_weak_ref", set_mruby_weak_ref);
   }
   ```
   
@@ -254,6 +260,9 @@ require C++11. because it use std::function and lambda.
 
   ```ruby
   set_mruby_ref "3test"
+  set_mruby_weak_ref (Object.new)
+
+  GC.start
   ```
 
 4. Manage reference of mruby object on C++:  
@@ -262,6 +271,7 @@ require C++11. because it use std::function and lambda.
   std::cout << "mruby_ref = " << mruby_ref.to_s() << std::endl;
   std::cout << "mruby_ref = " << mruby_ref.to_i() << std::endl;
   std::cout << "mruby_ref = " << mruby_ref.call("gsub", "te", "toa").to_s() << std::endl;
+  std::cout << "mruby_weak_ref released? " << mruby_ref.empty() << std::endl;
   ```
 
 ## Supported types
@@ -274,9 +284,11 @@ require C++11. because it use std::function and lambda.
 | void*                    | Object                  |
 | mrubybind::FuncPtr<...>  | Proc                    |
 | mrubybind::MrubyRef      | Any Mruby Object        |
+| mrubybind::MrubyWeakRef  | Weak Reference Any Mruby Object |
+| mrubybind::MrubyStrongRef| Strong Reference Any Mruby Object |
 | registered class         | registered class        |
 
-See [mrubybind.h](https://github.com/ktaobo/mrubybind/blob/master/mrubybind.h).
+See [mrubybind.h](https://github.com/lihaochen910/mrubybind/blob/devel/mrubybind.h).
   
 # License
 
